@@ -72,12 +72,50 @@ for status in statuses:
 
 outfile = open("processed_archive.html", "w")
 styleSheet = '''<style>
+body {
+  font-family: Verdana;
+  background-color: #282C37;
+  color: white;
+}
+
+a {
+  color: #8c8dff;
+  text-decoration: none;
+}
+
+.hashtag {
+  color: white;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#header {
+  text-align: center;
+}
+
+#header > img {
+  border-radius: 50%;
+  width: 150px;
+}
+
 #feed {
-  margin: 0 30% 0;
+  margin: 0 10% 0;
+}
+
+.m-post {
+  border: 1px solid;
+  border-radius: 25px;
+  padding: 10px;
+  margin-bottom: 10px;
+
+  text-wrap: wrap;
 }
 
 .m-media > * {
-  width: 100%;
+  max-width: 100%;
+  max-height: 20vh;
 }
 
 .m-post-header {
@@ -99,22 +137,80 @@ styleSheet = '''<style>
 .m-user-block {
   flex-grow: 1;
 }
+
+.invisible {
+  display: none;
+}
+
+.ellipsis:after {
+  content: "..."
+}
 </style>
 '''
-outfile.write("<!DOCTYPE html><html>\
-	<head>\
-	<title>Mastodon Archive</title>\
-	<meta charset='UTF-8'>\
-	<meta name='viewport' content='width=device-width, initial-scale=1.0'>")
+outfile.write('''<!DOCTYPE html>
+<html>
+  <head>
+    <title>Mastodon Archive</title>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+</head>''')
 outfile.write(styleSheet)
 outfile.write("</head><body>\
 	<section id='header'>\
 		<img src='avatar.png'>\
-		<div id=preferred-name>{0}</div>\
-		<a id=user-name>{1}</a>\
+		<div class='m-display-name'>{0}</div>\
+		<div>@{1}</div>\
 		<div id='actor-summary'>{2}</div>\
-	</section><div id='feed'>".format(actor.get("preferredUsername"), actor.get("name"), actor.get("summary")))
+	</section><div id='feed'>".format(actor.get("name"), actor.get("preferredUsername"), actor.get("summary")))
 for article in articles:
 	outfile.write(article)
-outfile.write("</div></body></html>")
+outfile.write(''' </div>
+<script>
+const SECOND_LENGTH = 1000;
+const MINUTE_LENGTH = 60 * 1000;
+const HOUR_LENGTH = 60 * MINUTE_LENGTH;
+const DAY_LENGTH = 24 * HOUR_LENGTH;
+const WEEK_LENGTH = 7 * DAY_LENGTH;
+const YEAR_LENGTH = 365 * DAY_LENGTH;
+
+function ShortDate(date) {
+  const now = new Date();
+  const then = new Date(date);
+
+  const diff = now.getTime() - then.getTime();
+
+  if (diff >= YEAR_LENGTH) {
+    return Math.floor(diff / YEAR_LENGTH).toString() + "y"
+  }
+
+  if (diff >= WEEK_LENGTH) {
+    return Math.floor(diff / WEEK_LENGTH).toString() + "w";
+  }
+
+  if (diff >= DAY_LENGTH) {
+    return Math.floor(diff / DAY_LENGTH).toString() + "d";
+  }
+
+  if (diff >= HOUR_LENGTH) {
+    return Math.floor(diff / HOUR_LENGTH).toString() + "h";
+  }
+
+  if (diff >= MINUTE_LENGTH) {
+    return Math.floor(diff / MINUTE_LENGTH).toString() + "m";
+  }
+
+  if (diff >= SECOND_LENGTH) {
+    return Math.floor(diff / SECOND_LENGTH).toString() + "s";
+  }
+
+  return date;
+}
+
+[...document.querySelectorAll(".m-permalink")].forEach(item => {
+  item.title = item.innerText;
+  item.innerText = ShortDate(item.innerText);
+})
+</script>
+</body>
+</html>''')
 outfile.close()
