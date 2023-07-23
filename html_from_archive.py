@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import json
 from os import path
 with open("outbox.json", "r") as outbox_file:
@@ -31,7 +32,8 @@ for status in statuses:
 			else:
 				images += "<img class='status__image' src='{0}'>".format(imageURL[pathOffset:])
 		if summary:
-			article = "<article class='status'>\
+			article = "<img src='profile.png'>\
+			<article class='status'>\
 			<div class='status__date'><span>{0}</span></div>\
 			<details><summary class='status__summary'>{1}</summary>\
 			<div class='status__content'>{2}</div>\
