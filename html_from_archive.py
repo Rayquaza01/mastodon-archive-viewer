@@ -16,6 +16,36 @@ articles = []
 # start with an offset of 1 to avoid checking root for /media or something else wrong
 pathOffset = 1
 
+POST_TEMPLATE = '''<div class="m-post">
+	<div class="m-post-header">
+		<img src="avatar.png" class="m-pfp">
+		<div class="m-user-block">
+			<div class="m-display-name">{4}</div>
+			<div class="m-user-name">@{5}</div>
+		</div>
+		<span class="m-permalink">{0}</span>
+	</div>
+	<details>
+		<summary>{1}</summary>
+		<div class="m-post-body">{2}</div>
+		<div class="m-media">{3}</div>
+	</details>
+</div>'''
+
+POST_TEMPLATE_NO_CW = '''<div class="m-post">
+	<div class="m-post-header">
+		<img src="avatar.png" class="m-pfp">
+		<div class="m-user-block">
+			<div class="m-display-name">{3}</div>
+			<div class="m-user-name">@{4}</div>
+		</div>
+		<span class="m-permalink">{0}</span>
+	</div>
+	<div class="m-post-body">{1}</div>
+	<div class="m-media">{2}</div>
+</div>'''
+
+
 for status in statuses:
 	#need to ignore objects that arent status dicts
 	if type(status) == type({}):
@@ -36,38 +66,13 @@ for status in statuses:
 					pathOffset +=1
 
 			if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
-				images += "<video controls muted src='{0}' class='status__image' alt='{1}' title='{1}'>There should be a video here.</video>".format(imageURL[pathOffset:], altText)
+				images += '<video controls muted src="{0}" class="status__image" alt="{1}" title="{1}">There should be a video here.</video>'.format(imageURL[pathOffset:], altText)
 			else:
-				images += "<img class='status__image' src='{0}' alt='{1}' title='{1}'>".format(imageURL[pathOffset:], altText)
+				images += '<img class="status__image" src="{0}" alt="{1}" title="{1}">'.format(imageURL[pathOffset:], altText)
 		if summary:
-			article = '''<div class="m-post">
-	<div class="m-post-header">
-		<img src="avatar.png" class="m-pfp">
-		<div class="m-user-block">
-			<div class="m-display-name">{4}</div>
-			<div class="m-user-name">@{5}</div>
-		</div>
-		<span class="m-permalink">{0}</span>
-	</div>
-	<details>
-		<summary>{1}</summary>
-		<div class="m-post-body">{2}</div>
-		<div class="m-media">{3}</div>
-	</details>
-</div>'''.format(date, summary, htmlContent, images, actor.get("name"), actor.get("preferredUsername"))
+			article = POST_TEMPLATE.format(date, summary, htmlContent, images, actor.get("name"), actor.get("preferredUsername"))
 		else:
-			article = '''<div class="m-post">
-	<div class="m-post-header">
-		<img src="avatar.png" class="m-pfp">
-		<div class="m-user-block">
-			<div class="m-display-name">{3}</div>
-			<div class="m-user-name">@{4}</div>
-		</div>
-		<span class="m-permalink">{0}</span>
-	</div>
-	<div class="m-post-body">{1}</div>
-	<div class="m-media">{2}</div>
-</div>'''.format(date, htmlContent, images, actor.get("name"), actor.get("preferredUsername"),)
+			article = POST_TEMPLATE_NO_CW.format(date, htmlContent, images, actor.get("name"), actor.get("preferredUsername"))
 		articles.append(article)
 
 outfile = open("processed_archive.html", "w")
@@ -147,23 +152,37 @@ a:hover {
 }
 </style>
 '''
+
+# CREATING OUTPUT FILE
+
+# write head for document
 outfile.write('''<!DOCTYPE html>
 <html>
-  <head>
-    <title>Mastodon Archive</title>
-    <meta charset='UTF-8'>
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-</head>''')
+<head>
+<title>Mastodon Archive</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+''')
+
+# write stylesheet
 outfile.write(styleSheet)
-outfile.write("</head><body>\
-	<section id='header'>\
-		<img src='avatar.png'>\
-		<div class='m-display-name'>{0}</div>\
-		<div>@{1}</div>\
-		<div id='actor-summary'>{2}</div>\
-	</section><div id='feed'>".format(actor.get("name"), actor.get("preferredUsername"), actor.get("summary")))
+
+# write header for page
+outfile.write('''
+</head>
+<body>
+<section id="header">
+<img src="avatar.png">
+<div class="m-display-name">{0}</div>
+<div>@{1}</div>
+<div id="actor-summary">{2}</div>
+</section><div id="feed">'''.format(actor.get("name"), actor.get("preferredUsername"), actor.get("summary")))
+
+# write each article
 for article in articles:
 	outfile.write(article)
+
+# write js glue to give short date codes
 outfile.write(''' </div>
 <script>
 const SECOND_LENGTH = 1000;
