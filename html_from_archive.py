@@ -2,33 +2,7 @@
 import json
 from os import path
 import datetime
-
-# SHORT DATE
-
-SECOND_LENGTH = 1
-MINUTE_LENGTH = 60
-HOUR_LENGTH = MINUTE_LENGTH * 60
-DAY_LENGTH = HOUR_LENGTH * 24
-WEEK_LENGTH = DAY_LENGTH * 7
-YEAR_LENGTH = DAY_LENGTH * 365
-
-def ShortDate(date: str):
-	now = datetime.datetime.now()
-	then = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
-
-	diff = int((now - then).total_seconds())
-
-	if diff >= YEAR_LENGTH:
-		return str(diff // YEAR_LENGTH) + "y"
-	if diff >= WEEK_LENGTH:
-		return str(diff // WEEK_LENGTH) + "w"
-	if diff >= DAY_LENGTH:
-		return str(diff // DAY_LENGTH) + "d"
-	if diff >= HOUR_LENGTH:
-		return str(diff // HOUR_LENGTH) + "h"
-	if diff >= MINUTE_LENGTH:
-		return str(diff // MINUTE_LENGTH) + "m"
-	return str(diff) + "s"
+import html
 
 with open("outbox.json", "r") as outbox_file:
 	outbox = json.loads(outbox_file.read())
@@ -48,18 +22,23 @@ for status in statuses:
 		date = status.get("published")
 		summary = status.get("summary")
 		htmlContent = status.get("content")
-		attachments = [attachment.get("url") for attachment in status.get("attachment")]
+		attachments = status.get("attachment")
 		images = ""
-		for imageURL in attachments:
+		for attachment in attachments:
+			imageURL = attachment.get("url")
+			altText = attachment.get("name")
+			if altText is None:
+				altText = ""
+			altText = html.escape(altText, True)
 			# only runs the loop for the first media url in the archive
 			if pathOffset == 1:
 				while not path.exists(imageURL[pathOffset:]) and pathOffset < len(imageURL):
 					pathOffset +=1
 
 			if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
-				images += "<video controls muted src='{0}' class='status__image'>There should be a video here.</video>".format(imageURL[pathOffset:])
+				images += "<video controls muted src='{0}' class='status__image' alt='{1}' title='{1}'>There should be a video here.</video>".format(imageURL[pathOffset:], altText)
 			else:
-				images += "<img class='status__image' src='{0}'>".format(imageURL[pathOffset:])
+				images += "<img class='status__image' src='{0}' alt='{1}' title='{1}'>".format(imageURL[pathOffset:], altText)
 		if summary:
 			article = '''<div class="m-post">
 	<div class="m-post-header">
@@ -68,14 +47,14 @@ for status in statuses:
 			<div class="m-display-name">{4}</div>
 			<div class="m-user-name">@{5}</div>
 		</div>
-		<span class="m-permalink" title={6}>{0}</span>
+		<span class="m-permalink">{0}</span>
 	</div>
 	<details>
 		<summary>{1}</summary>
 		<div class="m-post-body">{2}</div>
 		<div class="m-media">{3}</div>
 	</details>
-</div>'''.format(ShortDate(date), summary, htmlContent, images, actor.get("name"), actor.get("preferredUsername"), date)
+</div>'''.format(date, summary, htmlContent, images, actor.get("name"), actor.get("preferredUsername"))
 		else:
 			article = '''<div class="m-post">
 	<div class="m-post-header">
@@ -84,11 +63,11 @@ for status in statuses:
 			<div class="m-display-name">{3}</div>
 			<div class="m-user-name">@{4}</div>
 		</div>
-		<span class="m-permalink" title={5}>{0}</span>
+		<span class="m-permalink">{0}</span>
 	</div>
 	<div class="m-post-body">{1}</div>
 	<div class="m-media">{2}</div>
-</div>'''.format(ShortDate(date), htmlContent, images, actor.get("name"), actor.get("preferredUsername"), date)
+</div>'''.format(date, htmlContent, images, actor.get("name"), actor.get("preferredUsername"),)
 		articles.append(article)
 
 outfile = open("processed_archive.html", "w")
