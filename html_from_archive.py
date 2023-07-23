@@ -1,6 +1,35 @@
 #!/usr/bin/env python3
 import json
 from os import path
+import datetime
+
+# SHORT DATE
+
+SECOND_LENGTH = 1
+MINUTE_LENGTH = 60
+HOUR_LENGTH = MINUTE_LENGTH * 60
+DAY_LENGTH = HOUR_LENGTH * 24
+WEEK_LENGTH = DAY_LENGTH * 7
+YEAR_LENGTH = DAY_LENGTH * 365
+
+def ShortDate(date: str):
+	now = datetime.datetime.now()
+	then = datetime.datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
+
+	diff = int((now - then).total_seconds())
+
+	if diff >= YEAR_LENGTH:
+		return str(diff // YEAR_LENGTH) + "y"
+	if diff >= WEEK_LENGTH:
+		return str(diff // WEEK_LENGTH) + "w"
+	if diff >= DAY_LENGTH:
+		return str(diff // DAY_LENGTH) + "d"
+	if diff >= HOUR_LENGTH:
+		return str(diff // HOUR_LENGTH) + "h"
+	if diff >= MINUTE_LENGTH:
+		return str(diff // MINUTE_LENGTH) + "m"
+	return str(diff) + "s"
+
 with open("outbox.json", "r") as outbox_file:
 	outbox = json.loads(outbox_file.read())
 with open("actor.json", "r") as actor_file:
@@ -32,37 +61,67 @@ for status in statuses:
 			else:
 				images += "<img class='status__image' src='{0}'>".format(imageURL[pathOffset:])
 		if summary:
-			article = "<img src='profile.png'>\
-			<article class='status'>\
-			<div class='status__date'><span>{0}</span></div>\
-			<details><summary class='status__summary'>{1}</summary>\
-			<div class='status__content'>{2}</div>\
-			<div class='status__media'>{3}</div>\
-			</details>\
-			</article>".format(date, summary, htmlContent, images)
+			article = '''<div class="m-post">
+	<div class="m-post-header">
+		<img src="avatar.png" class="m-pfp">
+		<div class="m-user-block">
+			<div class="m-display-name">{4}</div>
+			<div class="m-user-name">@{5}</div>
+		</div>
+		<span class="m-permalink" title={6}>{0}</span>
+	</div>
+	<details>
+		<summary>{1}</summary>
+		<div class="m-post-body">{2}</div>
+		<div class="m-media">{3}</div>
+	</details>
+</div>'''.format(ShortDate(date), summary, htmlContent, images, actor.get("name"), actor.get("preferredUsername"), date)
 		else:
-			article = "<article class='status'>\
-			<div class='status__date'><span >{0}</span></div>\
-			<div class='status__content'>{1}</div>\
-			<div class='status__media'>{2}</div>\
-			</article>".format(date, htmlContent, images)
+			article = '''<div class="m-post">
+	<div class="m-post-header">
+		<img src="avatar.png" class="m-pfp">
+		<div class="m-user-block">
+			<div class="m-display-name">{3}</div>
+			<div class="m-user-name">@{4}</div>
+		</div>
+		<span class="m-permalink" title={5}>{0}</span>
+	</div>
+	<div class="m-post-body">{1}</div>
+	<div class="m-media">{2}</div>
+</div>'''.format(ShortDate(date), htmlContent, images, actor.get("name"), actor.get("preferredUsername"), date)
 		articles.append(article)
 
 outfile = open("processed_archive.html", "w")
-styleSheet = "<style>\
-.status { width: 54ch; position: relative; min-height: 128px; margin:auto auto 4em auto; border: 1px solid #999; border-radius: 16px; padding:8px; background: rgba(0,0,0,0.75);}\
-.status::before{ content: url('avatar.png'); position: absolute; right: 100%; }\
-.status__summary { width: 100%; background: #333 }\
-.status__summary::after {content: '[Click to Open]';display: block;}\
-.status__date { text-align: right; }\
-.status__content { }\
-.status__media { width:100%; }\
-.status__image { max-width: 100%; width:100%; min-width:100%; }\
-#header {background: rgba(0,0,0,0.75);text-align: center;padding-bottom: 16px;}\
-body { margin:0;background:#333; background-image: url('header.png'); background-size: cover; background-attachment: fixed; color: #fff1e8; line-height: 1.4;}\
-* {box-sizing: border-box;}\
-a { color: rgb(150,255,140) }\
-</style>"
+styleSheet = '''<style>
+#feed {
+  margin: 0 30% 0;
+}
+
+.m-media > * {
+  width: 100%;
+}
+
+.m-post-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.m-pfp {
+  border-radius: 50%;
+  height: 50px;
+  margin-right: 10px;
+}
+
+.m-display-name {
+  font-weight: bold;
+}
+
+.m-user-block {
+  flex-grow: 1;
+}
+</style>
+'''
 outfile.write("<!DOCTYPE html><html>\
 	<head>\
 	<title>Mastodon Archive</title>\
@@ -75,8 +134,8 @@ outfile.write("</head><body>\
 		<div id=preferred-name>{0}</div>\
 		<a id=user-name>{1}</a>\
 		<div id='actor-summary'>{2}</div>\
-	</section>".format(actor.get("preferredUsername"), actor.get("name"), actor.get("summary")))
+	</section><div id='feed'>".format(actor.get("preferredUsername"), actor.get("name"), actor.get("summary")))
 for article in articles:
 	outfile.write(article)
-outfile.write("</body></html>")
+outfile.write("</div></body></html>")
 outfile.close()
