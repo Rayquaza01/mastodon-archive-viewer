@@ -1,95 +1,112 @@
 #!/usr/bin/env python3
 import json
 from os import path
-import datetime
 import html
 
-with open("outbox.json", "r") as outbox_file:
-	outbox = json.loads(outbox_file.read())
-with open("actor.json", "r") as actor_file:
-	actor = json.loads(actor_file.read())
+with open("outbox.json", "r", encoding="utf-8") as outbox_file:
+    outbox = json.loads(outbox_file.read())
+with open("actor.json", "r", encoding="utf-8") as actor_file:
+    actor = json.loads(actor_file.read())
+
+ACTOR_ID = actor.get("id")
+
 #map the outbox down to the actual objects
 statuses = [status.get("object") for status in outbox.get("orderedItems")]
 
 articles = []
 #attachment urls may begin with "/media/" or something else we dont want
 # start with an offset of 1 to avoid checking root for /media or something else wrong
-pathOffset = 1
+PATH_OFFSET = 1
 
-POST_TEMPLATE = '''<div class="m-post">
-	<div class="m-post-header">
-		<img src="avatar.png" class="m-pfp">
-		<div class="m-user-block">
-			<div class="m-display-name">{4}</div>
-			<div class="m-user-name">@{5}</div>
-		</div>
-		<span class="m-permalink">{0}</span>
-	</div>
-	<details>
-		<summary>{1}</summary>
-		<div class="m-post-body">{2}</div>
-		<div class="m-media">{3}</div>
-	</details>
+POST_TEMPLATE = '''<div class="m-post" id="{6}">
+    <div class="m-post-header">
+        <img src="avatar.png" class="m-pfp">
+        <div class="m-user-block">
+            <div class="m-display-name">{4}</div>
+            <div class="m-user-name">@{5}</div>
+        </div>
+        {7}
+        <a href="#{6}" class="m-permalink">{0}</a>
+    </div>
+    <details>
+        <summary>{1}</summary>
+        <div class="m-post-body">{2}</div>
+        <div class="m-media">{3}</div>
+    </details>
 </div>'''
 
-POST_TEMPLATE_NO_CW = '''<div class="m-post">
-	<div class="m-post-header">
-		<img src="avatar.png" class="m-pfp">
-		<div class="m-user-block">
-			<div class="m-display-name">{3}</div>
-			<div class="m-user-name">@{4}</div>
-		</div>
-		<span class="m-permalink">{0}</span>
-	</div>
-	<div class="m-post-body">{1}</div>
-	<div class="m-media">{2}</div>
+POST_TEMPLATE_NO_CW = '''<div class="m-post" id="{5}">
+    <div class="m-post-header">
+        <img src="avatar.png" class="m-pfp">
+        <div class="m-user-block">
+            <div class="m-display-name">{3}</div>
+            <div class="m-user-name">@{4}</div>
+        </div>
+        {6}
+        <a href="#{5}" class="m-permalink">{0}</a>
+    </div>
+    <div class="m-post-body">{1}</div>
+    <div class="m-media">{2}</div>
 </div>'''
 
+REPLY_TEMPLATE = '''<a href="{0}" title="Parent Post">⬆️</a>'''
 
-for status in statuses:
-	#need to ignore objects that arent status dicts
-	if type(status) == type({}):
-		date = status.get("published")
-		summary = status.get("summary")
-		htmlContent = status.get("content")
-		attachments = status.get("attachment")
-		images = ""
-		for attachment in attachments:
-			imageURL = attachment.get("url")
-			altText = attachment.get("name")
-			if altText is None:
-				altText = ""
-			altText = html.escape(altText, True)
-			# only runs the loop for the first media url in the archive
-			if pathOffset == 1:
-				while not path.exists(imageURL[pathOffset:]) and pathOffset < len(imageURL):
-					pathOffset +=1
+VIDEO_TEMPLATE = '''<video controls muted src="{0}" class="status__image" alt="{1}" title="{1}">There should be a video here.</video>'''
+IMAGE_TEMPLATE = '''<img class="status__image" src="{0}" alt="{1}" title="{1}">'''
 
-			if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
-				images += '<video controls muted src="{0}" class="status__image" alt="{1}" title="{1}">There should be a video here.</video>'.format(imageURL[pathOffset:], altText)
-			else:
-				images += '<img class="status__image" src="{0}" alt="{1}" title="{1}">'.format(imageURL[pathOffset:], altText)
-		if summary:
-			article = POST_TEMPLATE.format(date, summary, htmlContent, images, actor.get("name"), actor.get("preferredUsername"))
-		else:
-			article = POST_TEMPLATE_NO_CW.format(date, htmlContent, images, actor.get("name"), actor.get("preferredUsername"))
-		articles.append(article)
+STYLESHEET = '''<style>
+:root {
+  --accent: #dc8add;
 
-outfile = open("processed_archive.html", "w")
-styleSheet = '''<style>
+  --bg: #c0bfbc;
+  --fg: black;
+
+  --post-bg: #deddda;
+  --post-drop-shadow: #deddda;
+
+  --link: #1a5fb4;
+
+  font-size: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: #613583;
+
+    --bg: #3d3846;
+    --fg: white;
+
+    --post-bg: #241f31;
+    --post-drop-shadow: black;
+
+    --link: #99c1f1;
+
+    font-size: 16px;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html, body {
+  background-color: var(--bg);
+}
+
 body {
   font-family: Verdana;
-  background-color: #282C37;
-  color: white;
+  color: var(--fg);
+
+  font-size: 1em;
 }
 
 a {
-  color: #8c8dff;
+  color: var(--link);
   text-decoration: none;
 }
 
 .hashtag {
-  color: white;
+  color: var(--fg);
 }
 
 a:hover {
@@ -98,11 +115,13 @@ a:hover {
 
 #header {
   text-align: center;
+
+  margin-bottom: 2%;
 }
 
 #header > img {
   border-radius: 50%;
-  width: 150px;
+  width: 10em;
 }
 
 #feed {
@@ -110,12 +129,18 @@ a:hover {
 }
 
 .m-post {
-  border: 1px solid;
-  border-radius: 25px;
-  padding: 10px;
-  margin-bottom: 10px;
+  border-radius: .75em;
+  background-color: var(--post-bg);
+  padding: 1.5em;
+  margin-bottom: 2em;
 
   text-wrap: wrap;
+
+  box-shadow: .25em .25em .25em var(--post-drop-shadow);
+}
+
+.m-post:target {
+  box-shadow: .5em .5em .5em var(--accent);
 }
 
 .m-media > * {
@@ -131,8 +156,8 @@ a:hover {
 
 .m-pfp {
   border-radius: 50%;
-  height: 50px;
-  margin-right: 10px;
+  height: 3em;
+  margin-right: 1em;
 }
 
 .m-display-name {
@@ -143,6 +168,11 @@ a:hover {
   flex-grow: 1;
 }
 
+.m-permalink {
+  color: var(--fg);
+  margin-left: 1em;
+}
+
 .invisible {
   display: none;
 }
@@ -150,41 +180,16 @@ a:hover {
 .ellipsis:after {
   content: "..."
 }
+
+blockquote {
+  border-left: .2em solid;
+  padding-left: 1em;
+  margin-left: 1em;
+}
 </style>
 '''
 
-# CREATING OUTPUT FILE
-
-# write head for document
-outfile.write('''<!DOCTYPE html>
-<html>
-<head>
-<title>Mastodon Archive</title>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-''')
-
-# write stylesheet
-outfile.write(styleSheet)
-
-# write header for page
-outfile.write('''
-</head>
-<body>
-<section id="header">
-<img src="avatar.png">
-<div class="m-display-name">{0}</div>
-<div>@{1}</div>
-<div id="actor-summary">{2}</div>
-</section><div id="feed">'''.format(actor.get("name"), actor.get("preferredUsername"), actor.get("summary")))
-
-# write each article
-for article in articles:
-	outfile.write(article)
-
-# write js glue to give short date codes
-outfile.write(''' </div>
-<script>
+DATE_SCRIPT = '''<script>
 const SECOND_LENGTH = 1000;
 const MINUTE_LENGTH = 60 * 1000;
 const HOUR_LENGTH = 60 * MINUTE_LENGTH;
@@ -229,7 +234,101 @@ function ShortDate(date) {
   item.title = item.innerText;
   item.innerText = ShortDate(item.innerText);
 })
-</script>
-</body>
-</html>''')
-outfile.close()
+</script>'''
+
+HEADER = '''<section id="header">
+    <img src="avatar.png">
+    <div class="m-display-name">{0}</div>
+    <div>@{1}</div>
+    <div id="actor-summary">{2}</div>
+</section>'''
+
+for status in statuses:
+    #need to ignore objects that arent status dicts
+    if isinstance(status, dict):
+        # skip DMs!
+        if status.get("directMessage"):
+            continue
+
+        date = status.get("published")
+        summary = status.get("summary")
+        htmlContent = status.get("content")
+        attachments = status.get("attachment")
+        in_reply_to = status.get("inReplyTo")
+
+        REPLY = ""
+        if in_reply_to is not None:
+            if in_reply_to.startswith(ACTOR_ID):
+                parent_id = in_reply_to.rsplit("/", maxsplit=1)[-1]
+                REPLY = REPLY_TEMPLATE.format("#" + parent_id)
+            else:
+                REPLY = REPLY_TEMPLATE.format(in_reply_to)
+
+        statusID = status.get("id").rsplit("/", maxsplit=1)[-1]
+
+        IMAGES = ""
+
+        for attachment in attachments:
+            imageURL = attachment.get("url")
+            ALT_TEXT = attachment.get("name")
+            if ALT_TEXT is None:
+                ALT_TEXT = ""
+            ALT_TEXT = html.escape(ALT_TEXT, True)
+            # only runs the loop for the first media url in the archive
+            if PATH_OFFSET == 1:
+                while not path.exists(imageURL[PATH_OFFSET:]) and PATH_OFFSET < len(imageURL):
+                    PATH_OFFSET +=1
+
+            if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
+                IMAGES += VIDEO_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
+            else:
+                IMAGES += IMAGE_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
+        if summary:
+            article = POST_TEMPLATE.format(
+                    date,
+                    summary,
+                    htmlContent,
+                    IMAGES,
+                    actor.get("name"),
+                    actor.get("preferredUsername"),
+                    statusID,
+                    REPLY
+            )
+        else:
+            article = POST_TEMPLATE_NO_CW.format(
+                    date,
+                    htmlContent,
+                    IMAGES,
+                    actor.get("name"),
+                    actor.get("preferredUsername"),
+                    statusID,
+                    REPLY
+            )
+        articles.append(article)
+
+with open("processed_archive.html", "w", encoding="utf-8") as outfile:
+    # CREATING OUTPUT FILE
+
+    # write head for document
+    outfile.write(f'''<!DOCTYPE html>
+<html>
+    <head>
+        <title>Mastodon Archive</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        {STYLESHEET}
+    </head>
+    <body>
+        <section id="header">
+            <img src="avatar.png">
+            <div class="m-display-name">{actor.get("name")}</div>
+            <div>@{actor.get("preferredUsername")}</div>
+            <div id="actor-summary">{actor.get("summary")}</div>
+        </section>
+        <div id="feed">
+            {"\n".join(articles)}
+        </div>
+        {DATE_SCRIPT}
+    </body>
+</html>
+''')
