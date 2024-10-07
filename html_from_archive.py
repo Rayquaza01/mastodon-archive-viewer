@@ -32,6 +32,7 @@ POST_TEMPLATE = '''<div class="m-post" id="{6}">
         <summary>{1}</summary>
         <div class="m-post-body">{2}</div>
         <div class="m-media">{3}</div>
+        <div class="m-poll">{8}</div>
     </details>
 </div>'''
 
@@ -47,12 +48,15 @@ POST_TEMPLATE_NO_CW = '''<div class="m-post" id="{5}">
     </div>
     <div class="m-post-body">{1}</div>
     <div class="m-media">{2}</div>
+    <div class="m-poll">{7}</div>
 </div>'''
 
 REPLY_TEMPLATE = '''<a href="{0}" title="Parent Post">⬆️</a>'''
 
 VIDEO_TEMPLATE = '''<video controls muted src="{0}" class="status__image" alt="{1}" title="{1}">There should be a video here.</video>'''
 IMAGE_TEMPLATE = '''<img class="status__image" src="{0}" alt="{1}" title="{1}">'''
+
+POLL_TEMPLATE = '''<span>{0} ({1})</span><progress value="{1}" max="{2}"></progress>'''
 
 STYLESHEET = '''<style>
 :root {
@@ -186,6 +190,13 @@ blockquote {
   padding-left: 1em;
   margin-left: 1em;
 }
+
+.m-poll {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1fr);
+  column-gap: 1em;
+  row-gap: .5em;
+}
 </style>
 '''
 
@@ -285,6 +296,31 @@ for status in statuses:
             IMAGES += VIDEO_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
         else:
             IMAGES += IMAGE_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
+
+    POLL = ""
+    if status.get("oneOf"):
+        for option in status.get("oneOf"):
+            POLL += POLL_TEMPLATE.format(
+                    option.get("name"),
+                    option.get("replies").get("totalItems"),
+                    status.get("votersCount")
+            )
+
+        POLL += f'<span>Total Votes: {status.get("votersCount")}</span>'
+
+    # I never actually posted a multiple choice poll, so I haven't tested this
+    # but it should be the same as a single choice poll
+    if status.get("anyOf"):
+        for option in status.get("anyOf"):
+            POLL += POLL_TEMPLATE.format(
+                    option.get("name"),
+                    option.get("replies").get("totalItems"),
+                    status.get("votersCount")
+            )
+
+        POLL += f'<span>Total Votes: {status.get("votersCount")}</span>'
+
+
     if summary:
         article = POST_TEMPLATE.format(
                 date,
@@ -294,7 +330,8 @@ for status in statuses:
                 actor.get("name"),
                 actor.get("preferredUsername"),
                 statusID,
-                REPLY
+                REPLY,
+                POLL
         )
     else:
         article = POST_TEMPLATE_NO_CW.format(
@@ -304,7 +341,8 @@ for status in statuses:
                 actor.get("name"),
                 actor.get("preferredUsername"),
                 statusID,
-                REPLY
+                REPLY,
+                POLL
         )
     articles.append(article)
 
