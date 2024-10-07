@@ -245,66 +245,68 @@ HEADER = '''<section id="header">
 
 for status in statuses:
     #need to ignore objects that arent status dicts
-    if isinstance(status, dict):
-        # skip DMs!
-        if status.get("directMessage"):
-            continue
+    if not isinstance(status, dict):
+        continue
 
-        date = status.get("published")
-        summary = status.get("summary")
-        htmlContent = status.get("content")
-        attachments = status.get("attachment")
-        in_reply_to = status.get("inReplyTo")
+    # skip DMs!
+    if status.get("directMessage"):
+        continue
 
-        REPLY = ""
-        if in_reply_to is not None:
-            if in_reply_to.startswith(ACTOR_ID):
-                parent_id = in_reply_to.rsplit("/", maxsplit=1)[-1]
-                REPLY = REPLY_TEMPLATE.format("#" + parent_id)
-            else:
-                REPLY = REPLY_TEMPLATE.format(in_reply_to)
+    date = status.get("published")
+    summary = status.get("summary")
+    htmlContent = status.get("content")
+    attachments = status.get("attachment")
+    in_reply_to = status.get("inReplyTo")
 
-        statusID = status.get("id").rsplit("/", maxsplit=1)[-1]
-
-        IMAGES = ""
-
-        for attachment in attachments:
-            imageURL = attachment.get("url")
-            ALT_TEXT = attachment.get("name")
-            if ALT_TEXT is None:
-                ALT_TEXT = ""
-            ALT_TEXT = html.escape(ALT_TEXT, True)
-            # only runs the loop for the first media url in the archive
-            if PATH_OFFSET == 1:
-                while not path.exists(imageURL[PATH_OFFSET:]) and PATH_OFFSET < len(imageURL):
-                    PATH_OFFSET +=1
-
-            if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
-                IMAGES += VIDEO_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
-            else:
-                IMAGES += IMAGE_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
-        if summary:
-            article = POST_TEMPLATE.format(
-                    date,
-                    summary,
-                    htmlContent,
-                    IMAGES,
-                    actor.get("name"),
-                    actor.get("preferredUsername"),
-                    statusID,
-                    REPLY
-            )
+    REPLY = ""
+    if in_reply_to is not None:
+        if in_reply_to.startswith(ACTOR_ID):
+            parent_id = in_reply_to.rsplit("/", maxsplit=1)[-1]
+            REPLY = REPLY_TEMPLATE.format("#" + parent_id)
         else:
-            article = POST_TEMPLATE_NO_CW.format(
-                    date,
-                    htmlContent,
-                    IMAGES,
-                    actor.get("name"),
-                    actor.get("preferredUsername"),
-                    statusID,
-                    REPLY
-            )
-        articles.append(article)
+            REPLY = REPLY_TEMPLATE.format(in_reply_to)
+
+    statusID = status.get("id").rsplit("/", maxsplit=1)[-1]
+
+    IMAGES = ""
+
+    for attachment in attachments:
+        imageURL = attachment.get("url")
+        ALT_TEXT = attachment.get("name")
+        if ALT_TEXT is None:
+            ALT_TEXT = ""
+        ALT_TEXT = html.escape(ALT_TEXT, True)
+        # only runs the loop for the first media url in the archive
+        if PATH_OFFSET == 1:
+            while not path.exists(imageURL[PATH_OFFSET:]) and PATH_OFFSET < len(imageURL):
+                PATH_OFFSET +=1
+
+        if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
+            IMAGES += VIDEO_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
+        else:
+            IMAGES += IMAGE_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
+    if summary:
+        article = POST_TEMPLATE.format(
+                date,
+                summary,
+                htmlContent,
+                IMAGES,
+                actor.get("name"),
+                actor.get("preferredUsername"),
+                statusID,
+                REPLY
+        )
+    else:
+        article = POST_TEMPLATE_NO_CW.format(
+                date,
+                htmlContent,
+                IMAGES,
+                actor.get("name"),
+                actor.get("preferredUsername"),
+                statusID,
+                REPLY
+        )
+    articles.append(article)
 
 with open("processed_archive.html", "w", encoding="utf-8") as outfile:
     # CREATING OUTPUT FILE
