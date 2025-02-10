@@ -206,6 +206,7 @@ a:hover {
   margin-bottom: 2em;
 
   text-wrap: wrap;
+  overflow-wrap: break-word;
 
   box-shadow: .25em .25em .25em var(--post-drop-shadow);
 }
@@ -217,12 +218,19 @@ a:hover {
 .m-media {
   text-wrap: nowrap;
   overflow-x: scroll;
+
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5em;
 }
 
 .m-media > a img,
 .m-media > video{
   max-width: 100%;
   max-height: 315px;
+
+  border-radius: 0.5em;
 }
 
 .m-post-header {
