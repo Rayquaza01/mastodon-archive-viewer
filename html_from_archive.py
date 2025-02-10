@@ -2,6 +2,18 @@
 import json
 from os import path
 import html
+import argparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument("--photoswipe", action="store_true", help="Enable Photoswipe?")
+opts = ap.parse_args()
+
+Image = None
+if opts.photoswipe:
+    try:
+        from PIL import Image
+    except:
+        Image = None
 
 with open("outbox.json", "r", encoding="utf-8") as outbox_file:
     outbox = json.loads(outbox_file.read())
@@ -54,9 +66,60 @@ POST_TEMPLATE_NO_CW = '''<div class="m-post" id="{5}">
 REPLY_TEMPLATE = '''<a href="{0}" title="Parent Post">⬆️</a>'''
 
 VIDEO_TEMPLATE = '''<video controls muted src="{0}" class="status__image" alt="{1}" title="{1}">There should be a video here.</video>'''
-IMAGE_TEMPLATE = '''<img class="status__image" src="{0}" alt="{1}" title="{1}">'''
+IMAGE_TEMPLATE = '''<a href="{0}" data-pswp-width="{2}" data-pswp-height="{3}" target="_blank"><img class="status__image" src="{0}" alt="{1}" title="{1}"></a>'''
 
 POLL_TEMPLATE = '''<span>{0} ({1})</span><progress value="{1}" max="{2}"></progress>'''
+
+PHOTOSWIPE = ""
+if opts.photoswipe and Image:
+    PHOTOSWIPE = '''
+<link rel="stylesheet" type="text/css" href="https://unpkg.com/photoswipe@5.4.4/dist/photoswipe.css">
+<script type="module" defer>
+  import PhotoSwipeLightBox from 'https://unpkg.com/photoswipe/dist/photoswipe-lightbox.esm.js';
+
+  const lightbox = new PhotoSwipeLightBox({
+    gallery: ".m-media",
+    children: "a",
+    pswpModule: () => import("https://unpkg.com/photoswipe")
+  });
+
+  lightbox.on("uiRegister", function() {
+    lightbox.pswp.ui.registerElement({
+      name: "alt_text",
+      classname: "pswp__alt-text-container",
+      appendTo: "wrapper",
+      onInit: (el, pswp) => {
+        const textbox = document.createElement("p");
+        textbox.classList.add("pswp__alt-text-container");
+        el.appendChild(textbox);
+
+        lightbox.pswp.on('change', () => {
+          const currSlideElement = lightbox.pswp.currSlide.data.element;
+          let caption = "";
+          if (currSlideElement) {
+            caption = currSlideElement.querySelector("img").getAttribute("alt");
+            if (caption === "") {
+              textbox.style.display = "none";
+            } else {
+              textbox.style.display = "";
+            }
+          } else {
+            textbox.style.display = "none";
+          }
+          textbox.innerHTML = caption || "";
+        });
+
+        const stopEvent = name => textbox.addEventListener(name, event => event.stopPropagation(), { passive: true });
+        stopEvent("wheel");
+        stopEvent("pointerdown");
+        stopEvent("pointercancel");
+      }
+    });
+  });
+
+  lightbox.init();
+</script>
+'''
 
 STYLESHEET = '''<style>
 :root {
@@ -64,6 +127,8 @@ STYLESHEET = '''<style>
 
   --bg: #c0bfbc;
   --fg: black;
+
+  --alt-background: rgba(222, 221, 218, 0.75);
 
   --post-bg: #deddda;
   --post-drop-shadow: #deddda;
@@ -79,6 +144,8 @@ STYLESHEET = '''<style>
 
     --bg: #3d3846;
     --fg: white;
+
+    --alt-background: rgba(36, 31, 49, 0.75);
 
     --post-bg: #241f31;
     --post-drop-shadow: black;
@@ -147,7 +214,8 @@ a:hover {
   box-shadow: .5em .5em .5em var(--accent);
 }
 
-.m-media > * {
+.m-media > a img,
+.m-media > video{
   max-width: 100%;
   max-height: 20vh;
 }
@@ -196,6 +264,27 @@ blockquote {
   grid-template-columns: 1fr minmax(0, 1fr);
   column-gap: 1em;
   row-gap: .5em;
+}
+
+.pswp__alt-text-container {
+  background: var(--alt-background);
+  color: var(--fg);
+  backdrop-filter: blur(10px);
+
+  text-align: center;
+  width: 75%;
+  max-width: 800px;
+  max-height: 8em;
+  padding: .5em 1em;
+  border-radius: 4px;
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  overflow-y: scroll;
+
+  padding: 16px;
+  white-space: pre-line;
 }
 </style>
 '''
@@ -295,7 +384,15 @@ for status in statuses:
         if imageURL[-4:] == ".mp4" or imageURL[-5:] == ".webm":
             IMAGES += VIDEO_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
         else:
-            IMAGES += IMAGE_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT)
+            width = "0"
+            height = "0"
+            if opts.photoswipe and Image:
+                im = Image.open(imageURL[PATH_OFFSET:])
+                w, h = im.size
+                width = str(w)
+                height = str(h)
+
+            IMAGES += IMAGE_TEMPLATE.format(imageURL[PATH_OFFSET:], ALT_TEXT, width, height)
 
     POLL = ""
     if status.get("oneOf"):
@@ -357,6 +454,7 @@ with open("processed_archive.html", "w", encoding="utf-8") as outfile:
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         {STYLESHEET}
+        {PHOTOSWIPE}
     </head>
     <body>
         <section id="header">
