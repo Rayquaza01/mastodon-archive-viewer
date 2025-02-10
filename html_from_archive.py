@@ -214,10 +214,15 @@ a:hover {
   box-shadow: .5em .5em .5em var(--accent);
 }
 
+.m-media {
+  text-wrap: nowrap;
+  overflow-x: scroll;
+}
+
 .m-media > a img,
 .m-media > video{
   max-width: 100%;
-  max-height: 20vh;
+  max-height: 315px;
 }
 
 .m-post-header {
